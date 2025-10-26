@@ -16,9 +16,9 @@ const SEEDHASH_DURATION = 4 * (60 * 60 * 24) // seed hash changes once every 4 d
 
 const BLOCKS_PER_DAY = 60 * 60 * 24 / TARGET_BLOCK_TIME
 
-const STRATUM_READ_TIMEOUT = 10 * 60 * time.Second // 增加到10分钟，适应多设备环境
-const STRATUM_JOBS_HISTORY = 10 // 从3增加到10，减少stale job问题
-const STRATUM_MAX_CONNECTIONS = 100 // 最大stratum连接数限制
+const STRATUM_READ_TIMEOUT = 24 * 60 * 60 * time.Second // 增加到10分钟，适应多设备环境
+const STRATUM_JOBS_HISTORY = 10                         // 从3增加到10，减少stale job问题
+const STRATUM_MAX_CONNECTIONS = 100                     // 最大stratum连接数限制
 
 var ATOMIC = math.Round(math.Log10(COIN))
 
