@@ -411,7 +411,13 @@ func (bc *Blockchain) handleConn(v *stratumsrv.Conn) error {
 						},
 						Id: req.Id,
 					})
-					Log.Debug("stratum miner submit invalid block:", err.Error())
+					// 获取连接地址用于日志
+					var remoteAddr string
+					v.View(func(c *stratumsrv.ConnData) error {
+						remoteAddr = c.Conn.RemoteAddr().String()
+						return nil
+					})
+					Log.Warn("stratum miner submit invalid block:", err.Error(), "from", remoteAddr)
 					return nil
 				}
 

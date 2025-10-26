@@ -4,3 +4,4 @@ TODO.txt
 *.pprof
 *-lmdb
 peerlist-*.json
+.idea

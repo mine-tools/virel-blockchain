@@ -87,13 +87,21 @@ func (s *Server) StartStratum(ip string, port uint16) error {
 		}
 		Log.Info("Stratum conn:", conn.RemoteAddr())
 
+		// 检查连接数限制
+		s.Lock()
+		if len(s.conns) >= config.STRATUM_MAX_CONNECTIONS {
+			s.Unlock()
+			Log.Warn("Stratum connection limit reached, rejecting connection from", conn.RemoteAddr())
+			conn.Close()
+			continue
+		}
+
 		c := &Conn{
 			data: &ConnData{
 				Conn: conn,
 				Jobs: make([]*MinerJob, 0, config.STRATUM_JOBS_HISTORY),
 			},
 		}
-		s.Lock()
 		s.conns[conn.RemoteAddr().String()] = c
 		s.Unlock()
 		s.NewConnections <- c
@@ -119,18 +127,19 @@ func (s *Server) SendJob(bl *block.Block, diff uint128.Uint128) {
 	s.LastBlock = bl
 	s.LastMinDiff = diff
 	for _, v := range s.conns {
-		go func() {
-			err := v.Update(func(c *ConnData) error {
+		go func(conn *Conn) {
+			err := conn.Update(func(c *ConnData) error {
 				if c.Address == address.INVALID_ADDRESS {
 					Log.Debug("address is invalid (no handshake yet)")
 					return nil
 				}
 
-				rand.Read(bl.NonceExtra[:])
+				// 创建block的深拷贝，避免并发修改原始block
+				blCopy := *bl
+				rand.Read(blCopy.NonceExtra[:])
+				blCopy.Recipient = c.Address
 
-				bl.Recipient = c.Address
-
-				blob := bl.Commitment().MiningBlob()
+				blob := blCopy.Commitment().MiningBlob()
 				seed := blob.GetSeed()
 				jobid := strconv.FormatUint(util.RandomUint64(), 36)
 				target := util.GetTargetBytes(diff)
@@ -146,13 +155,13 @@ func (s *Server) SendJob(bl *block.Block, diff uint128.Uint128) {
 				}
 				c.Jobs = append(c.Jobs, &MinerJob{
 					JobID: jobid,
-					Block: bl,
+					Block: &blCopy, // 使用拷贝的block
 					Seed:  seed,
 				})
 
 				Log.Debug("sending job to stratum connection", c.Conn.RemoteAddr())
 				go func() {
-					err := v.WriteJSON(rpc.NoreplyRequest{
+					err := conn.WriteJSON(rpc.NoreplyRequest{
 						JsonRpc: "2.0",
 						Method:  "job",
 						Params: stratum.Job{
@@ -161,7 +170,7 @@ func (s *Server) SendJob(bl *block.Block, diff uint128.Uint128) {
 							JobID:    jobid,
 							Target:   target,
 							SeedHash: seed[:],
-							Height:   bl.Height,
+							Height:   blCopy.Height,
 						},
 					})
 					if err != nil {
@@ -171,9 +180,9 @@ func (s *Server) SendJob(bl *block.Block, diff uint128.Uint128) {
 				return nil
 			})
 			if err != nil {
-				s.Kick(v)
+				s.Kick(conn)
 			}
-		}()
+		}(v)
 	}
 }
 

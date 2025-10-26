@@ -311,6 +311,22 @@ func (bc *Blockchain) blockFound(bl *block.Block, powHash [16]byte) ([]stratum.F
 
 	hash := bl.Hash()
 
+	// 检查是否已经有相同高度的block在处理
+	bc.processingMut.Lock()
+	if bc.processingBlocks[bl.Height] {
+		bc.processingMut.Unlock()
+		return nil, fmt.Errorf("block at height %d is already being processed", bl.Height)
+	}
+	bc.processingBlocks[bl.Height] = true
+	bc.processingMut.Unlock()
+
+	// 确保在处理完成后清理
+	defer func() {
+		bc.processingMut.Lock()
+		delete(bc.processingBlocks, bl.Height)
+		bc.processingMut.Unlock()
+	}()
+
 	success := false
 	if config.IS_MASTERCHAIN {
 		var morefound []stratum.FoundBlockInfo

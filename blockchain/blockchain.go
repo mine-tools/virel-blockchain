@@ -54,6 +54,10 @@ type Blockchain struct {
 	SyncDiff              Uint128 // top cumulative diff seen from remote nodes
 	SyncLastRequestHeight uint64
 	SyncMut               util.RWMutex
+
+	// 跟踪正在处理的block，防止重复处理
+	processingBlocks map[uint64]bool
+	processingMut    sync.RWMutex
 }
 type Index struct {
 	Info            adb.Index
@@ -80,6 +84,7 @@ func New(dataDir string, db adb.DB) *Blockchain {
 		Stratum: &stratumsrv.Server{
 			NewConnections: make(chan *stratumsrv.Conn),
 		},
+		processingBlocks: make(map[uint64]bool),
 	}
 
 	bc.DataDir = dataDir
