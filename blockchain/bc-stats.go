@@ -35,6 +35,7 @@ type AltchainTip struct {
 type Orphan struct {
 	Hash     util.Hash
 	PrevHash util.Hash
+	IsLocal  bool // true if mined locally, false if received from network
 }
 
 func (s *Stats) Serialize() []byte {

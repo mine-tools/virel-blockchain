@@ -567,7 +567,11 @@ func prompts(bc *blockchain.Blockchain) {
 				updated := false
 
 				for _, v := range orphans {
-					Log.Infof("orphan %d hash: %s, parent: %v", v.Height, v.Orphan.Hash, v.Orphan.PrevHash)
+					source := "network"
+					if v.Orphan.IsLocal {
+						source = "local"
+					}
+					Log.Infof("orphan %d hash: %s, parent: %v, source: %s", v.Height, v.Orphan.Hash, v.Orphan.PrevHash, source)
 					if stats.Orphans[v.Orphan.PrevHash] == nil {
 						prevbl, _ := bc.GetBlock(txn, v.Orphan.PrevHash)
 						if prevbl == nil {

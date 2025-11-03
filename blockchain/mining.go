@@ -352,7 +352,7 @@ func (bc *Blockchain) blockFound(bl *block.Block, powHash [16]byte) ([]stratum.F
 		}
 		go bc.BroadcastBlock(bl)
 		err = bc.DB.Update(func(tx adb.Txn) error {
-			return bc.AddBlock(tx, bl, hash)
+			return bc.AddBlockWithSource(tx, bl, hash, true) // true = locally mined
 		})
 		if err != nil {
 			return nil, err

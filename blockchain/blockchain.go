@@ -482,6 +482,11 @@ func (bc *Blockchain) checkBlock(tx adb.Txn, bl, prevBl *block.Block, _ util.Has
 // If the block doesn't fit in the mainchain, it is either added to an altchain or orphaned.
 // Blockchain MUST be locked before calling this
 func (bc *Blockchain) AddBlock(tx adb.Txn, bl *block.Block, hash util.Hash) error {
+	return bc.AddBlockWithSource(tx, bl, hash, false) // false = from network by default
+}
+
+// AddBlockWithSource adds a block with source information (local mining vs network)
+func (bc *Blockchain) AddBlockWithSource(tx adb.Txn, bl *block.Block, hash util.Hash, isLocal bool) error {
 	stats := bc.GetStats(tx)
 
 	// check if block is duplicate
@@ -495,6 +500,29 @@ func (bc *Blockchain) AddBlock(tx adb.Txn, bl *block.Block, hash util.Hash) erro
 	// check if block is orphaned
 	prevBl, err := bc.GetBlock(tx, prevHash)
 	if err != nil {
+		// Insert orphan block to database and add to stats.Orphans
+		err2 := bc.insertBlock(tx, bl, hash)
+		if err2 != nil {
+			Log.Err("failed to insert orphan block:", err2)
+		} else {
+			// Add to orphans map with source information
+			stats.Orphans[hash] = &Orphan{
+				Hash:     hash,
+				PrevHash: prevHash,
+				IsLocal:  isLocal,
+			}
+			if isLocal {
+				Log.Warnf("Local mined orphan block %d hash: %x, parent: %x (parent not found)", bl.Height, hash, prevHash)
+			} else {
+				Log.Warnf("Network received orphan block %d hash: %x, parent: %x (parent not found)", bl.Height, hash, prevHash)
+			}
+			// Save stats to persist orphan information
+			err3 := bc.setStatsNoBroadcast(tx, stats)
+			if err3 != nil {
+				Log.Err("failed to save stats after adding orphan:", err3)
+			}
+		}
+
 		bc.BlockQueue.Update(func(qt *QueueTx) {
 			qt.BlockDownloaded(hash)
 
