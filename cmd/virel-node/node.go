@@ -37,6 +37,7 @@ func main() {
 	version := flag.Bool("version", false, "prints version and exits")
 	p2p_bind_port := flag.Uint("p2p-bind-port", config.P2P_BIND_PORT, "starts P2P server on this port")
 	public_rpc := flag.Bool("public-rpc", false, "required for public RPC nodes: blocks private RPC calls and binds on 0.0.0.0")
+	rpc_bind_ip := flag.String("rpc-bind-ip", "0.0.0.0", "starts RPC server on this IP")
 	rpc_bind_port := flag.Uint("rpc-bind-port", config.RPC_BIND_PORT, "starts RPC server on this port")
 	stratum_bind_ip := flag.String("stratum-bind-ip", "127.0.0.1", "use 0.0.0.0 to expose Stratum server")
 	stratum_bind_port := flag.Uint("stratum-bind-port", config.STRATUM_BIND_PORT, "")
@@ -111,9 +112,9 @@ func main() {
 		}
 	}
 
-	bind_ip := "127.0.0.1"
+	bind_ip := *rpc_bind_ip // 使用命令行参数指定的IP
 	if *public_rpc {
-		bind_ip = "0.0.0.0"
+		bind_ip = "0.0.0.0" // public-rpc强制绑定到所有接口
 	}
 
 	nodes := config.SEED_NODES
