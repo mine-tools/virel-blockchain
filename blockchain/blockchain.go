@@ -249,11 +249,15 @@ func (bc *Blockchain) RequestBlock(reqbl *packet.PacketBlockRequest, stats *Stat
 			for _, key := range connKeys {
 				conn := bc.P2P.Connections[key]
 				found := false
+				var peerHeight uint64
+				var peerDiff string
 				conn.PeerData(func(d *p2p.PeerData) {
 					if reqbl.Height == 0 ||
 						(d.Stats.Height >= reqbl.Height && d.Stats.CumulativeDiff.Cmp(stats.CumulativeDiff) >= 0) {
 						peer = conn
 						found = true
+						peerHeight = d.Stats.Height
+						peerDiff = d.Stats.CumulativeDiff.String()
 					}
 				})
 				if found {
@@ -261,6 +265,8 @@ func (bc *Blockchain) RequestBlock(reqbl *packet.PacketBlockRequest, stats *Stat
 						peerIp = c.IP()
 						return nil
 					})
+					Log.Debugf("Selected peer %s for block request (height %d, peer height: %d, peer diff: %s)", 
+						peerIp, reqbl.Height, peerHeight, peerDiff)
 					return true
 				}
 			}

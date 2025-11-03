@@ -112,7 +112,13 @@ func (bc *Blockchain) packetBlock(pack p2p.Packet) {
 		return
 	}
 
-	Log.Debugf("Processing block %d %x", bl.Height, bl.Hash())
+	var peerIP string
+	pack.Conn.View(func(c *p2p.ConnData) error {
+		peerIP = c.IP()
+		return nil
+	})
+
+	Log.Debugf("Processing block %d %x (received from %s)", bl.Height, bl.Hash(), peerIP)
 
 	hash := bl.Hash()
 
