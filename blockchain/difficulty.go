@@ -42,7 +42,7 @@ func (bc *Blockchain) GetNextDifficulty(tx adb.Txn, bl *block.Block) (uint128.Ui
 		}
 		Log.Debug("LTTC deviation:", float64(timeDeviation)/1000)
 	}
-	Log.Debug("LTTC deviation:", deltaTime)
+	Log.Debug("LTTC deltaTime:", deltaTime)
 	// compute difficulty using EMA algorithm
 	newDiff := difficultyEMA(deltaTime, bl.Difficulty)
 
