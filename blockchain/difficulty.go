@@ -40,13 +40,13 @@ func (bc *Blockchain) GetNextDifficulty(tx adb.Txn, bl *block.Block) (uint128.Ui
 		} else if timeDeviation < -maxDeviation { // block is too recent
 			deltaTime = deltaTime * 2 / 3 // multiply deltaTime by 2/3, so the difficulty increases
 		}
-		Log.Debug("LTTC deviation:", float64(timeDeviation)/1000)
+		Log.Info("LTTC deviation:", float64(timeDeviation)/1000)
 	}
-	Log.Debug("LTTC deltaTime:", deltaTime)
+	Log.Info("LTTC deltaTime:", deltaTime)
 	// compute difficulty using EMA algorithm
 	newDiff := difficultyEMA(deltaTime, bl.Difficulty)
 
-	Log.Debug("diff:", diff, "->", newDiff)
+	Log.Info("diff:", diff, "->", newDiff)
 
 	if newDiff.Cmp64(config.MIN_DIFFICULTY) < 0 {
 		newDiff = uint128.From64(config.MIN_DIFFICULTY)
