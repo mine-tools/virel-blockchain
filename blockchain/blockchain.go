@@ -265,7 +265,7 @@ func (bc *Blockchain) RequestBlock(reqbl *packet.PacketBlockRequest, stats *Stat
 						peerIp = c.IP()
 						return nil
 					})
-					Log.Debugf("Selected peer %s for block request (height %d, peer height: %d, peer diff: %s)", 
+					Log.Debugf("Selected peer %s for block request height %d (peer height: %d, peer diff: %s)", 
 						peerIp, reqbl.Height, peerHeight, peerDiff)
 					return true
 				}
@@ -276,13 +276,16 @@ func (bc *Blockchain) RequestBlock(reqbl *packet.PacketBlockRequest, stats *Stat
 		// 首先尝试主节点
 		if len(seedNodeConnections) > 0 {
 			if findPeer(seedNodeConnections) {
+				Log.Debugf("Using seed node %s for block request (height %d)", peerIp, reqbl.Height)
 				return
 			}
 		}
 
 		// 如果主节点不可用或不满足要求，再从其他节点中选择
 		if len(otherConnections) > 0 {
-			findPeer(otherConnections)
+			if findPeer(otherConnections) {
+				Log.Debugf("Using non-seed node %s for block request (height %d) - seed nodes unavailable", peerIp, reqbl.Height)
+			}
 		}
 	}()
 

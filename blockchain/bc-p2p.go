@@ -118,7 +118,7 @@ func (bc *Blockchain) packetBlock(pack p2p.Packet) {
 		return nil
 	})
 
-	Log.Debugf("Processing block %d %x (received from %s)", bl.Height, bl.Hash(), peerIP)
+	Log.Debugf("Received block %d %x from %s (broadcast)", bl.Height, bl.Hash(), peerIP)
 
 	hash := bl.Hash()
 
