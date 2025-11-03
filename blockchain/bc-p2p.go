@@ -142,14 +142,20 @@ func (bc *Blockchain) packetStats(pack p2p.Packet) {
 		return
 	}
 
-	Log.Dev("peer has stats", st)
+	var peerIP string
+	pack.Conn.View(func(c *p2p.ConnData) error {
+		peerIP = c.IP()
+		return nil
+	})
+
+	Log.Dev("peer has stats", st, "from", peerIP)
 	pack.Conn.PeerData(func(d *p2p.PeerData) {
 		d.Stats = st
 	})
 
 	bc.SyncMut.Lock()
 	if st.CumulativeDiff.Cmp(bc.SyncDiff) > 0 {
-		Log.Infof("New target: height %d, cumulative diff %s", st.Height, st.CumulativeDiff)
+		Log.Infof("New target: height %d, cumulative diff %s (received from %s)", st.Height, st.CumulativeDiff, peerIP)
 		bc.SyncHeight = st.Height
 		bc.SyncDiff = st.CumulativeDiff
 	}
