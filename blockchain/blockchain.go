@@ -3,7 +3,6 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	mrand "math/rand/v2"
 	"runtime"
 	"sync"
 	"time"
@@ -215,33 +214,69 @@ func (bc *Blockchain) RequestBlock(reqbl *packet.PacketBlockRequest, stats *Stat
 			return
 		}
 
-		// take a random connection as the first peer to try
-		peernum := mrand.IntN(len(bc.P2P.Connections))
+		// 创建主节点IP映射表以便快速查找
+		seedNodeMap := make(map[string]bool)
+		for _, seedIP := range config.SEED_NODES {
+			seedNodeMap[seedIP] = true
+		}
 
 		keys := make([]string, 0, len(bc.P2P.Connections))
 		for k := range bc.P2P.Connections {
 			keys = append(keys, k)
 		}
 
-		for i := 0; i < len(keys); i++ {
-			n := (i + peernum) % len(keys)
-			conn := bc.P2P.Connections[keys[n]]
+		// 首先尝试从主节点中选择
+		var seedNodeConnections []string
+		var otherConnections []string
 
-			found := false
-			conn.PeerData(func(d *p2p.PeerData) {
-				if reqbl.Height == 0 ||
-					(d.Stats.Height >= reqbl.Height && d.Stats.CumulativeDiff.Cmp(stats.CumulativeDiff) >= 0) {
-					peer = conn
-					found = true
-				}
+		for _, key := range keys {
+			conn := bc.P2P.Connections[key]
+			var isSeedNode bool
+			conn.View(func(c *p2p.ConnData) error {
+				ip := c.IP()
+				isSeedNode = seedNodeMap[ip]
+				return nil
 			})
-			if found {
-				conn.View(func(c *p2p.ConnData) error {
-					peerIp = c.IP()
-					return nil
-				})
-				break
+			if isSeedNode {
+				seedNodeConnections = append(seedNodeConnections, key)
+			} else {
+				otherConnections = append(otherConnections, key)
 			}
+		}
+
+		// 优先从主节点中查找满足条件的节点
+		findPeer := func(connKeys []string) bool {
+			for _, key := range connKeys {
+				conn := bc.P2P.Connections[key]
+				found := false
+				conn.PeerData(func(d *p2p.PeerData) {
+					if reqbl.Height == 0 ||
+						(d.Stats.Height >= reqbl.Height && d.Stats.CumulativeDiff.Cmp(stats.CumulativeDiff) >= 0) {
+						peer = conn
+						found = true
+					}
+				})
+				if found {
+					conn.View(func(c *p2p.ConnData) error {
+						peerIp = c.IP()
+						return nil
+					})
+					return true
+				}
+			}
+			return false
+		}
+
+		// 首先尝试主节点
+		if len(seedNodeConnections) > 0 {
+			if findPeer(seedNodeConnections) {
+				return
+			}
+		}
+
+		// 如果主节点不可用或不满足要求，再从其他节点中选择
+		if len(otherConnections) > 0 {
+			findPeer(otherConnections)
 		}
 	}()
 
