@@ -60,3 +60,8 @@ func (r *RpcClient) GetDelegate(p GetDelegateRequest) (*GetDelegateResponse, err
 	o := &GetDelegateResponse{}
 	return o, r.Request("get_delegate", p, &o)
 }
+
+func (r *RpcClient) GetAllStakingWallets(p GetAllStakingWalletsRequest) (*GetAllStakingWalletsResponse, error) {
+	o := &GetAllStakingWalletsResponse{}
+	return o, r.Request("get_all_staking_wallets", p, &o)
+}

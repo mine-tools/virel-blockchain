@@ -5,3 +5,6 @@ TODO.txt
 *-lmdb
 peerlist-*.json
 .idea
+*.txt
+/virel-wallet-cli
+/virel-node

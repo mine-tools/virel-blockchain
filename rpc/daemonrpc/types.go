@@ -152,3 +152,24 @@ type GetDelegateResponse struct {
 	Name        string                     `json:"name"`
 	Funds       []*chaintype.DelegatedFund `json:"funds"`
 }
+
+type StakingWalletInfo struct {
+	Address          address.Address `json:"address"`
+	Amount           uint64          `json:"amount"`
+	UnlockHeight     uint64          `json:"unlock_height"`
+	RemainingBlocks  uint64          `json:"remaining_blocks"`  // 剩余区块数
+	RemainingSeconds uint64          `json:"remaining_seconds"` // 剩余秒数
+	DelegateId       uint64          `json:"delegate_id"`
+	DelegateName     string          `json:"delegate_name"`
+	DelegateAddress  address.Address `json:"delegate_address"`
+}
+
+type GetAllStakingWalletsRequest struct {
+}
+
+type GetAllStakingWalletsResponse struct {
+	Height   uint64              `json:"height"`
+	Wallets  []StakingWalletInfo `json:"wallets"`
+	Total    uint64              `json:"total"`    // 总质押金额
+	Count    uint64              `json:"count"`    // 质押钱包总数
+}

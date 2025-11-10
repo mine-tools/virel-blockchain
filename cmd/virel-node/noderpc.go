@@ -699,6 +699,69 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 		})
 	})
 
+	rs.Handle("get_all_staking_wallets", func(c *rpcserver.Context) {
+		params := daemonrpc.GetAllStakingWalletsRequest{}
+		err := c.GetParams(&params)
+		if err != nil {
+			return
+		}
+
+		var stats *blockchain.Stats
+		var allWallets []daemonrpc.StakingWalletInfo
+		var totalAmount uint64
+
+		err = bc.DB.View(func(txn adb.Txn) error {
+			stats = bc.GetStats(txn)
+			currentHeight := stats.TopHeight
+
+			// 遍历所有delegate
+			err := bc.GetDelegates(txn, func(delegate *chaintype.Delegate) (bool, error) {
+				// 遍历每个delegate的所有质押资金
+				for _, fund := range delegate.Funds {
+					// 计算剩余解锁时间
+					var remainingBlocks uint64
+					if fund.Unlock > currentHeight {
+						remainingBlocks = fund.Unlock - currentHeight
+					}
+					remainingSeconds := remainingBlocks * uint64(config.TARGET_BLOCK_TIME)
+
+					walletInfo := daemonrpc.StakingWalletInfo{
+						Address:          fund.Owner,
+						Amount:           fund.Amount,
+						UnlockHeight:     fund.Unlock,
+						RemainingBlocks:  remainingBlocks,
+						RemainingSeconds: remainingSeconds,
+						DelegateId:       delegate.Id,
+						DelegateName:     string(delegate.Name),
+						DelegateAddress:  address.NewDelegateAddress(delegate.Id),
+					}
+
+					allWallets = append(allWallets, walletInfo)
+					totalAmount += fund.Amount
+				}
+				return false, nil // 继续遍历
+			})
+
+			return err
+		})
+
+		if err != nil {
+			Log.Warn(err)
+			c.ErrorResponse(&rpc.Error{
+				Code:    internalReadFailed,
+				Message: "failed to get staking wallets",
+			})
+			return
+		}
+
+		c.SuccessResponse(daemonrpc.GetAllStakingWalletsResponse{
+			Height:  stats.TopHeight,
+			Wallets: allWallets,
+			Total:    totalAmount,
+			Count:    uint64(len(allWallets)),
+		})
+	})
+
 	if !restricted {
 		rs.Handle("get_rich_list", func(c *rpcserver.Context) {
 			const COUNT = 100
