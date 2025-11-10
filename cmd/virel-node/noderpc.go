@@ -847,7 +847,7 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 					}
 
 					// 获取交易发送者地址
-					signerAddr := address.FromPubKey(tx.Signer).Addr
+					signerAddr := address.FromPubKey(tx.Signer)
 
 					// 检查交易类型
 					switch tx.Version {
