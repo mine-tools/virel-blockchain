@@ -168,8 +168,41 @@ type GetAllStakingWalletsRequest struct {
 }
 
 type GetAllStakingWalletsResponse struct {
-	Height   uint64              `json:"height"`
-	Wallets  []StakingWalletInfo `json:"wallets"`
-	Total    uint64              `json:"total"`    // 总质押金额
-	Count    uint64              `json:"count"`    // 质押钱包总数
+	Height  uint64              `json:"height"`
+	Wallets []StakingWalletInfo `json:"wallets"`
+	Total   uint64              `json:"total"` // 总质押金额
+	Count   uint64              `json:"count"` // 质押钱包总数
+}
+
+type WalletStakingInfo struct {
+	Address address.Address `json:"address"` // 钱包地址
+	Amount  uint64          `json:"amount"`  // 质押/取消质押金额
+}
+
+type DailyStakingStats struct {
+	Date           string              `json:"date"`             // 日期 (YYYY-MM-DD)
+	StakeAmount    uint64              `json:"stake_amount"`     // 新增质押量
+	StakeCount     uint64              `json:"stake_count"`      // 质押交易数
+	UnstakeAmount  uint64              `json:"unstake_amount"`   // 转出质押量
+	UnstakeCount   uint64              `json:"unstake_count"`    // 取消质押交易数
+	NetStakeAmount uint64              `json:"net_stake_amount"` // 净质押量
+	StakeWallets   []WalletStakingInfo `json:"stake_wallets"`    // 质押的钱包列表
+	UnstakeWallets []WalletStakingInfo `json:"unstake_wallets"`  // 取消质押的钱包列表
+}
+
+type GetDailyStakingStatsRequest struct {
+	StartHeight uint64 `json:"start_height,omitempty"` // 起始区块高度（可选）
+	EndHeight   uint64 `json:"end_height,omitempty"`   // 结束区块高度（可选）
+	Days        uint64 `json:"days,omitempty"`         // 查询最近N天的数据（可选）
+}
+
+type GetDailyStakingStatsResponse struct {
+	Height          uint64              `json:"height"`            // 当前区块高度
+	StartHeight     uint64              `json:"start_height"`      // 实际查询的起始高度
+	EndHeight       uint64              `json:"end_height"`        // 实际查询的结束高度
+	DailyStats      []DailyStakingStats `json:"daily_stats"`       // 每日统计
+	TotalStake      uint64              `json:"total_stake"`       // 总新增质押量
+	TotalUnstake    uint64              `json:"total_unstake"`     // 总转出质押量
+	TotalStakeTxs   uint64              `json:"total_stake_txs"`   // 质押交易总数
+	TotalUnstakeTxs uint64              `json:"total_unstake_txs"` // 取消质押交易总数
 }

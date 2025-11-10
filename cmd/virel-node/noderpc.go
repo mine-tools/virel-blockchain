@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/virel-project/virel-blockchain/v3/adb"
 	"github.com/virel-project/virel-blockchain/v3/address"
@@ -757,9 +758,165 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 		c.SuccessResponse(daemonrpc.GetAllStakingWalletsResponse{
 			Height:  stats.TopHeight,
 			Wallets: allWallets,
-			Total:    totalAmount,
-			Count:    uint64(len(allWallets)),
+			Total:   totalAmount,
+			Count:   uint64(len(allWallets)),
 		})
+	})
+
+	rs.Handle("get_daily_staking_stats", func(c *rpcserver.Context) {
+		params := daemonrpc.GetDailyStakingStatsRequest{}
+		err := c.GetParams(&params)
+		if err != nil {
+			return
+		}
+
+		var stats *blockchain.Stats
+		var startHeight, endHeight uint64
+
+		err = bc.DB.View(func(txn adb.Txn) error {
+			stats = bc.GetStats(txn)
+			currentHeight := stats.TopHeight
+
+			// 确定查询范围
+			if params.Days > 0 {
+				// 根据天数计算起始高度（假设每15秒一个区块）
+				blocksPerDay := uint64(24*60*60) / uint64(config.TARGET_BLOCK_TIME)
+				if params.Days*blocksPerDay > currentHeight {
+					startHeight = 1
+				} else {
+					startHeight = currentHeight - (params.Days * blocksPerDay)
+				}
+				endHeight = currentHeight
+			} else {
+				if params.StartHeight > 0 {
+					startHeight = params.StartHeight
+				} else {
+					startHeight = 1
+				}
+				if params.EndHeight > 0 {
+					endHeight = params.EndHeight
+				} else {
+					endHeight = currentHeight
+				}
+			}
+
+			// 确保范围有效
+			if startHeight < 1 {
+				startHeight = 1
+			}
+			if endHeight > currentHeight {
+				endHeight = currentHeight
+			}
+			if startHeight > endHeight {
+				startHeight = endHeight
+			}
+
+			// 按日期统计质押和取消质押
+			dailyStatsMap := make(map[string]*daemonrpc.DailyStakingStats)
+			var totalStake, totalUnstake uint64
+			var totalStakeTxs, totalUnstakeTxs uint64
+
+			// 遍历区块
+			for height := startHeight; height <= endHeight; height++ {
+				bl, err := bc.GetBlockByHeight(txn, height)
+				if err != nil {
+					// 忽略无法获取的区块，继续处理
+					continue
+				}
+
+				// 获取区块日期
+				timestampMs := bl.Timestamp
+				timestampS := timestampMs / 1000
+				dateStr := time.Unix(int64(timestampS), 0).Format("2006-01-02")
+
+				// 初始化该日期的统计
+				if dailyStatsMap[dateStr] == nil {
+					dailyStatsMap[dateStr] = &daemonrpc.DailyStakingStats{
+						Date:           dateStr,
+						StakeWallets:   make([]daemonrpc.WalletStakingInfo, 0),
+						UnstakeWallets: make([]daemonrpc.WalletStakingInfo, 0),
+					}
+				}
+
+				// 遍历区块中的交易
+				for _, txid := range bl.Transactions {
+					tx, _, err := bc.GetTx(txn, txid, currentHeight)
+					if err != nil {
+						// 忽略无法获取的交易，继续处理
+						continue
+					}
+
+					// 获取交易发送者地址
+					signerAddr := address.FromPubKey(tx.Signer).Addr
+
+					// 检查交易类型
+					switch tx.Version {
+					case transaction.TX_VERSION_STAKE:
+						// 质押交易
+						stakeData := tx.Data.(*transaction.Stake)
+						dailyStatsMap[dateStr].StakeAmount += stakeData.Amount
+						dailyStatsMap[dateStr].StakeCount++
+						totalStake += stakeData.Amount
+						totalStakeTxs++
+
+						// 记录质押钱包信息
+						dailyStatsMap[dateStr].StakeWallets = append(dailyStatsMap[dateStr].StakeWallets, daemonrpc.WalletStakingInfo{
+							Address: signerAddr,
+							Amount:  stakeData.Amount,
+						})
+
+					case transaction.TX_VERSION_UNSTAKE:
+						// 取消质押交易
+						unstakeData := tx.Data.(*transaction.Unstake)
+						dailyStatsMap[dateStr].UnstakeAmount += unstakeData.Amount
+						dailyStatsMap[dateStr].UnstakeCount++
+						totalUnstake += unstakeData.Amount
+						totalUnstakeTxs++
+
+						// 记录取消质押钱包信息
+						dailyStatsMap[dateStr].UnstakeWallets = append(dailyStatsMap[dateStr].UnstakeWallets, daemonrpc.WalletStakingInfo{
+							Address: signerAddr,
+							Amount:  unstakeData.Amount,
+						})
+					}
+				}
+			}
+
+			// 计算净质押量并转换为切片
+			dailyStats := make([]daemonrpc.DailyStakingStats, 0, len(dailyStatsMap))
+			for date, stat := range dailyStatsMap {
+				stat.NetStakeAmount = stat.StakeAmount - stat.UnstakeAmount
+				stat.Date = date
+				dailyStats = append(dailyStats, *stat)
+			}
+
+			// 按日期排序
+			slices.SortFunc(dailyStats, func(a, b daemonrpc.DailyStakingStats) int {
+				return strings.Compare(a.Date, b.Date)
+			})
+
+			c.SuccessResponse(daemonrpc.GetDailyStakingStatsResponse{
+				Height:          currentHeight,
+				StartHeight:     startHeight,
+				EndHeight:       endHeight,
+				DailyStats:      dailyStats,
+				TotalStake:      totalStake,
+				TotalUnstake:    totalUnstake,
+				TotalStakeTxs:   totalStakeTxs,
+				TotalUnstakeTxs: totalUnstakeTxs,
+			})
+
+			return nil
+		})
+
+		if err != nil {
+			Log.Warn(err)
+			c.ErrorResponse(&rpc.Error{
+				Code:    internalReadFailed,
+				Message: "failed to get daily staking stats",
+			})
+			return
+		}
 	})
 
 	if !restricted {

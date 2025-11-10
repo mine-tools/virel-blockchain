@@ -65,3 +65,8 @@ func (r *RpcClient) GetAllStakingWallets(p GetAllStakingWalletsRequest) (*GetAll
 	o := &GetAllStakingWalletsResponse{}
 	return o, r.Request("get_all_staking_wallets", p, &o)
 }
+
+func (r *RpcClient) GetDailyStakingStats(p GetDailyStakingStatsRequest) (*GetDailyStakingStatsResponse, error) {
+	o := &GetDailyStakingStatsResponse{}
+	return o, r.Request("get_daily_staking_stats", p, &o)
+}
