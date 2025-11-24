@@ -93,6 +93,8 @@ type GetBlockResponse struct {
 	Miner            string          `json:"miner"`
 	Delegate         address.Address `json:"delegate"`
 	NextDelegate     address.Address `json:"next_delegate"`
+	LTTCDeviation    *float64        `json:"lttc_deviation,omitempty"`    // LTTC deviation in seconds (only if LTTC is enabled)
+	LTTCDeltaTime    *uint64         `json:"lttc_delta_time,omitempty"`   // LTTC deltaTime in milliseconds
 }
 
 type CalcPowRequest struct {

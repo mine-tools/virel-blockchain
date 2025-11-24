@@ -120,6 +120,23 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 			}
 		}
 
+		// Calculate LTTC values
+		var lttcDeviation *float64
+		var lttcDeltaTime *uint64
+		err = bc.DB.View(func(txn adb.Txn) error {
+			deviation, deltaTime, err := bc.CalculateLTTCValues(txn, bl)
+			if err != nil {
+				return err
+			}
+			lttcDeviation = deviation
+			lttcDeltaTime = &deltaTime
+			return nil
+		})
+		if err != nil {
+			Log.Debug("error calculating LTTC values:", err)
+			// Continue without LTTC values if calculation fails
+		}
+
 		res := daemonrpc.GetBlockResponse{
 			Block:            *bl,
 			Hash:             bl.Hash().String(),
@@ -128,6 +145,8 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 			StakerReward:     stakerReward,
 			GovernanceReward: governanceReward,
 			Miner:            bl.Recipient.String(),
+			LTTCDeviation:    lttcDeviation,
+			LTTCDeltaTime:    lttcDeltaTime,
 		}
 		if bl.Version > 0 {
 			res.Delegate = address.NewDelegateAddress(bl.DelegateId)
@@ -178,6 +197,23 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 			}
 		}
 
+		// Calculate LTTC values
+		var lttcDeviation *float64
+		var lttcDeltaTime *uint64
+		err = bc.DB.View(func(txn adb.Txn) error {
+			deviation, deltaTime, err := bc.CalculateLTTCValues(txn, bl)
+			if err != nil {
+				return err
+			}
+			lttcDeviation = deviation
+			lttcDeltaTime = &deltaTime
+			return nil
+		})
+		if err != nil {
+			Log.Debug("error calculating LTTC values:", err)
+			// Continue without LTTC values if calculation fails
+		}
+
 		res := daemonrpc.GetBlockResponse{
 			Block:            *bl,
 			Hash:             bl.Hash().String(),
@@ -186,6 +222,8 @@ func startRpc(bc *blockchain.Blockchain, ip string, port uint16, restricted bool
 			StakerReward:     stakerReward,
 			GovernanceReward: governanceReward,
 			Miner:            bl.Recipient.String(),
+			LTTCDeviation:    lttcDeviation,
+			LTTCDeltaTime:    lttcDeltaTime,
 		}
 		if bl.Version > 0 {
 			res.Delegate = address.NewDelegateAddress(bl.DelegateId)

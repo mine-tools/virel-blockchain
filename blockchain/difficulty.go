@@ -67,3 +67,37 @@ func difficultyEMA(solveTime uint64, prevDiff uint128.Uint128) uint128.Uint128 {
 
 	return nextD
 }
+
+// CalculateLTTCValues calculates LTTC deviation and deltaTime for a block
+// Returns (deviation in seconds, deltaTime in milliseconds, error)
+// deviation will be nil if LTTC is not enabled (GENESIS_TIMESTAMP == 0)
+func (bc *Blockchain) CalculateLTTCValues(tx adb.Txn, bl *block.Block) (*float64, uint64, error) {
+	if bl.Height < 1 {
+		// Genesis block has no previous block
+		return nil, 0, nil
+	}
+
+	prev, err := bc.GetBlock(tx, bl.PrevHash())
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Calculate deltaTime (time difference between current and previous block)
+	deltaTime := bl.Timestamp - prev.Timestamp
+
+	// Make sure that deltaTime is not too small (same logic as GetNextDifficulty)
+	if deltaTime < 100 {
+		deltaTime = 100
+	}
+
+	// Calculate LTTC deviation if LTTC is enabled
+	var deviation *float64
+	if config.GENESIS_TIMESTAMP != 0 {
+		expectedBlockTime := bl.Height*config.TARGET_BLOCK_TIME*1000 + config.GENESIS_TIMESTAMP
+		timeDeviation := int64(bl.Timestamp) - int64(expectedBlockTime)
+		deviationValue := float64(timeDeviation) / 1000.0 // Convert to seconds
+		deviation = &deviationValue
+	}
+
+	return deviation, deltaTime, nil
+}
