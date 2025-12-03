@@ -36,11 +36,12 @@ func (b *Block) CoinbaseTransaction(totalReward uint64) []CoinbaseOutput {
 			Type:      transaction.OUT_COINBASE_POW,
 		}}
 	case 1:
-		// 10% governance, 50% PoW, 40% PoS
+		// 10% governance, 90% PoW, 10% PoS (of remaining after governance)
 
 		governanceReward := totalReward * config.BLOCK_REWARD_FEE_PERCENT / 100
-		powReward := totalReward / 2 // 50% of total
-		posReward := totalReward - powReward - governanceReward
+		remainingReward := totalReward - governanceReward
+		powReward := remainingReward * 90 / 100 // 90% of remaining
+		posReward := remainingReward * 10 / 100  // 10% of remaining
 		burnReward := uint64(0)
 
 		if b.StakeSignature == bitcrypto.BlankSignature {
